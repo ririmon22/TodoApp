@@ -4,9 +4,15 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Todo App</title>
+        <style>
+            .completed{
+                text-decoration: line-through;
+            }
+        </style>
     </head>
     <body>
         <h1>Todo App</h1>
+        <h2 id="current-date"></h2>
 
         <ul id="todo-list"> </ul>
 
@@ -19,6 +25,8 @@
             </select>
             <button type="submit">Add Todo </button>
         </form>
+
+        <button type="button">Delete Completed</button>
 
         <script src="/static/index.js"></script>
     </body>

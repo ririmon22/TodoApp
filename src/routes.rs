@@ -39,7 +39,7 @@ pub fn routes(db: Arc<Mutex<HashMap<u32, TodoItem>>>) -> impl Filter<Extract = i
     warp::reply::with_status("Todo added", warp::http::StatusCode::CREATED)
    });
 
-   //  todoパスに対応するGETリクエストに対して、全てのToDoアイテムを取得
+   // todosパスに対応するGETリクエストに対して、全てのToDoアイテムを取得
    let get_todos = warp::get()
    .and(warp::path("todos"))
    .and(with_db(db.clone()))
@@ -48,7 +48,68 @@ pub fn routes(db: Arc<Mutex<HashMap<u32, TodoItem>>>) -> impl Filter<Extract = i
     let todos: Vec<TodoItem> = db.values().cloned().collect();
     warp::reply::json(&todos)
    });
-   get_index.or(static_file).or(add_todo).or(get_todos)
+
+    // todosパスに対応するDELETEリクエストに対して、状態がコンプリートとなっているToDoを削除
+    let delete_todo = warp::delete()
+    .and(warp::path("todos"))
+    .and(with_db(db.clone()))
+    .map(|db: Arc<Mutex<HashMap<u32, TodoItem>>>| {
+        let mut db = db.lock().unwrap();
+        let completed_ids: Vec<u32> = db.iter()
+            .filter(|(_, todo)| todo.completed)
+            .map(|(id, _)| *id)
+            .collect();
+
+        for id in completed_ids {
+            db.remove(&id);
+        }
+
+        let mut new_db = HashMap::new();
+        let mut new_id = 1;
+        for (_id, mut todo) in db.iter_mut() {
+            todo.id = Some(new_id);
+            new_db.insert(new_id, todo.clone());
+            new_id += 1;
+        }
+        *db = new_db; 
+
+        warp::reply::with_status("Todos deleted", warp::http::StatusCode::NO_CONTENT)
+    });
+
+
+    // todos/idパスに対応するPATCHリクエストに対して、指定された完了ステータスを反転する
+    let toggle_todo_status = warp::patch()
+    .and(warp::path("todos"))
+    .and(warp::path::param::<u32>())
+    .and(with_db(db.clone()))
+    .map(|id: u32, db: Arc<Mutex<HashMap<u32, TodoItem>>>| {
+        let mut db = db.lock().unwrap();
+        if let Some(todo) = db.get_mut(&id) {
+            todo.completed = !todo.completed;
+            warp::reply::with_status("Todo status updated", warp::http::StatusCode::OK)
+        } else {
+            warp::reply::with_status("Todo not found", warp::http::StatusCode::NOT_FOUND)
+        }
+    });
+
+    // todos/id パスに対応するPUTリクエストに対して、タイトルと優先度を変更する。
+    let change_todo_title = warp::put()
+    .and(warp::path("todos"))
+    .and(warp::path::param::<u32>())
+    .and(warp::body::json())
+    .and(with_db(db.clone()))
+    .map(|id:u32, update_todo: TodoItem, db: Arc<Mutex<HashMap<u32, TodoItem>>>| {
+        let mut db = db.lock().unwrap();
+        if let Some(todo) = db.get_mut(&id) {
+            todo.title = update_todo.title;
+            todo.completed = false;
+            todo.priority = update_todo.priority;
+            warp::reply::with_status("Todo updated", warp::http::StatusCode::OK)
+        } else {
+            warp::reply::with_status("Todo not found", warp::http::StatusCode::NOT_FOUND)
+        }
+    });
+   get_index.or(static_file).or(add_todo).or(get_todos).or(toggle_todo_status).or(delete_todo).or(change_todo_title)
 }
 
 /// `with_db` 関数は、共有データベース (`Arc<Mutex<HashMap<u32, TodoItem>>>`) を
