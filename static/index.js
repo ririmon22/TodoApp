@@ -32,7 +32,6 @@ document.getElementById('todo-form').addEventListener('submit', async (event) =>
     console.log('From submitted');
 
     const title = document.getElementById('todo-title').value;
-    const dueDate = document.getElementById('todo-due-date').value;
     const priority = document.getElementById('todo-priority').value;
     console.log('Adding Todo:', title);
 
@@ -42,14 +41,13 @@ document.getElementById('todo-form').addEventListener('submit', async (event) =>
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({title: title, completed: false, due_date: dueDate, priority: priority}),
+            body: JSON.stringify({title: title, completed: false, priority: priority}),
         });
 
         if (response.ok){
             console.log('Todo added successfully');
             fetchTodos();
             document.getElementById('todo-title').value = '';
-            document.getElementById('todo-due-date').value = '';
             document.getElementById('todo-priority').value = 'Low';
         } else {
             const errorText = await response.text();
